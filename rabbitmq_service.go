@@ -62,20 +62,25 @@ func (r *RabbitMQService) Publish(message string) error {
 	return nil
 }
 
-// Consume listens for messages from the RabbitMQ queue
-func (r *RabbitMQService) Consume() (<-chan amqp.Delivery, error) {
-	msgs, err := r.Channel.Consume(
-		r.Queue.Name, // queue
-		"",           // consumer
-		true,         // auto-ack
-		false,        // exclusive
-		false,        // no-local
-		false,        // no-wait
-		nil,          // args
+func (r *RabbitMQService) Consume(queueName string) (<-chan amqp.Delivery, error) {
+	channel, err := r.connection.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	msgs, err := channel.Consume(
+		queueName, // kuyruk adı
+		"",        // consumer tag (boş bırakabilirsiniz)
+		true,      // auto-ack
+		false,     // exclusive
+		false,     // no-local
+		false,     // no-wait
+		nil,       // args
 	)
 	if err != nil {
 		return nil, err
 	}
+
 	return msgs, nil
 }
 
