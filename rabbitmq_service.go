@@ -46,10 +46,10 @@ func NewRabbitMQService(rabbitmqURL, queueName string) (*RabbitMQService, error)
 // Publish sends a message to the RabbitMQ queue
 func (r *RabbitMQService) Publish(routeKey string, message string) error {
 	err := r.Channel.Publish(
-		"",           // exchange
+		"",       // exchange
 		routeKey, // routing key (queue name)
-		false,        // mandatory
-		false,        // immediate
+		false,    // mandatory
+		false,    // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
