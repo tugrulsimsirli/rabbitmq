@@ -82,6 +82,15 @@ func (r *RabbitMQService) Consume(queueName string) (<-chan amqp.Delivery, error
 	return msgs, nil
 }
 
+// CloseChannel closes the current RabbitMQ channel but keeps the connection open
+func (r *RabbitMQService) CloseChannel() error {
+	if err := r.Channel.Close(); err != nil {
+		return err
+	}
+	log.Println("RabbitMQ channel closed")
+	return nil
+}
+
 // Close closes the RabbitMQ connection and channel
 func (r *RabbitMQService) Close() {
 	if err := r.Channel.Close(); err != nil {
