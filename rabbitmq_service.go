@@ -12,25 +12,28 @@ type RabbitMQService struct {
 	Queue      amqp.Queue
 }
 
-// NewRabbitMQService creates a new instance of RabbitMQService
+// NewRabbitMQService creates a new instance of RabbitMQService and declares a queue
 func NewRabbitMQService(rabbitmqURL, queueName string) (*RabbitMQService, error) {
+	// Connect to RabbitMQ
 	conn, err := amqp.Dial(rabbitmqURL)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create a new channel
 	ch, err := conn.Channel()
 	if err != nil {
 		return nil, err
 	}
 
+	// Declare a queue
 	q, err := ch.QueueDeclare(
-		queueName, // queue name
-		false,     // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		queueName, // Queue name
+		true,      // Durable (will survive broker restart)
+		false,     // Auto delete when unused
+		false,     // Exclusive (only accessible by this connection)
+		false,     // No-wait
+		nil,       // Arguments
 	)
 	if err != nil {
 		return nil, err
@@ -43,13 +46,28 @@ func NewRabbitMQService(rabbitmqURL, queueName string) (*RabbitMQService, error)
 	}, nil
 }
 
-// Publish sends a message to the RabbitMQ queue
-func (r *RabbitMQService) Publish(routeKey string, message string) error {
-	err := r.Channel.Publish(
-		"",       // exchange
-		routeKey, // routing key (queue name)
-		false,    // mandatory
-		false,    // immediate
+// Publish sends a message to the RabbitMQ queue with a routing key
+func (r *RabbitMQService) Publish(routingKey string, message string) error {
+	// Ensure the direct exchange is declared
+	err := r.Channel.ExchangeDeclare(
+		"direct_exchange", // Exchange name
+		"direct",          // Exchange type (direct)
+		true,              // Durable (survives broker restart)
+		false,             // Auto-deleted
+		false,             // Internal
+		false,             // No-wait
+		nil,               // Arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	// Publish the message to the exchange with the routing key
+	err = r.Channel.Publish(
+		"direct_exchange", // Exchange
+		routingKey,        // Routing key
+		false,             // Mandatory
+		false,             // Immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
@@ -64,14 +82,15 @@ func (r *RabbitMQService) Publish(routeKey string, message string) error {
 
 // Consume listens for messages from the RabbitMQ queue
 func (r *RabbitMQService) Consume(queueName string) (<-chan amqp.Delivery, error) {
+	// Start consuming messages from the queue
 	msgs, err := r.Channel.Consume(
-		queueName, // queue
-		"",        // consumer
-		true,      // auto-ack
-		false,     // exclusive
-		false,     // no-local
-		false,     // no-wait
-		nil,       // args
+		queueName, // Queue
+		"",        // Consumer name
+		true,      // Auto-ack
+		false,     // Exclusive
+		false,     // No-local
+		false,     // No-wait
+		nil,       // Arguments
 	)
 	if err != nil {
 		return nil, err
@@ -79,7 +98,7 @@ func (r *RabbitMQService) Consume(queueName string) (<-chan amqp.Delivery, error
 	return msgs, nil
 }
 
-// Consume listens for messages from the RabbitMQ queue with a specific routing key
+// ConsumeWithRoute listens for messages from the RabbitMQ queue with a specific routing key
 func (r *RabbitMQService) ConsumeWithRoute(queueName string, routingKey string) (<-chan amqp.Delivery, error) {
 	// Declare a direct exchange if not already declared
 	err := r.Channel.ExchangeDeclare(
@@ -125,6 +144,10 @@ func (r *RabbitMQService) ConsumeWithRoute(queueName string, routingKey string) 
 
 // Close closes the RabbitMQ connection and channel
 func (r *RabbitMQService) Close() {
-	r.Channel.Close()
-	r.Connection.Close()
+	if err := r.Channel.Close(); err != nil {
+		log.Printf("Failed to close RabbitMQ channel: %v", err)
+	}
+	if err := r.Connection.Close(); err != nil {
+		log.Printf("Failed to close RabbitMQ connection: %v", err)
+	}
 }
