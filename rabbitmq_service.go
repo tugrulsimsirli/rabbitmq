@@ -82,6 +82,42 @@ func (r *RabbitMQService) Consume(queueName string) (<-chan amqp.Delivery, error
 	return msgs, nil
 }
 
+// CreateChannel creates and returns a new RabbitMQ channel
+func (r *RabbitMQService) CreateChannel(queueName string) (*amqp.Channel, <-chan amqp.Delivery, error) {
+	ch, err := r.Connection.Channel()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Declare a queue
+	_, err = ch.QueueDeclare(
+		queueName, // Queue name
+		true,      // Durable (will survive broker restart)
+		false,     // Auto delete when unused
+		false,     // Exclusive (only accessible by this connection)
+		false,     // No-wait
+		nil,       // Arguments
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	msgs, err := ch.Consume(
+		queueName, // Queue
+		"",        // Consumer name
+		true,      // Auto-ack
+		false,     // Exclusive
+		false,     // No-local
+		false,     // No-wait
+		nil,       // Arguments
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ch, msgs, nil
+}
+
 // CloseChannel closes the current RabbitMQ channel but keeps the connection open
 func (r *RabbitMQService) CloseChannel() error {
 	if err := r.Channel.Close(); err != nil {
