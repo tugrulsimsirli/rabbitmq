@@ -118,13 +118,8 @@ func (r *RabbitMQService) CreateChannel(queueName string) (*amqp.Channel, <-chan
 	return ch, msgs, nil
 }
 
-// CloseChannel closes the current RabbitMQ channel but keeps the connection open
-func (r *RabbitMQService) CloseChannel() error {
-	if err := r.Channel.Close(); err != nil {
-		return err
-	}
-	log.Println("RabbitMQ channel closed")
-	return nil
+func (r *RabbitMQService) CloseChannel(ch *amqp.Channel) error {
+	return ch.Close()
 }
 
 // Close closes the RabbitMQ connection and channel
